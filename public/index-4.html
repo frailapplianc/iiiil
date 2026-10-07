@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OGH — Дроп-бухгалтерия</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◈</text></svg>">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0a0a;
+  --surface:#111;
+  --border:#222;
+  --text:#e5e5e5;
+  --muted:#666;
+  --accent:#b8965a;
+  --green:#4a9;
+  --yellow:#c90;
+  --red:#c44;
+  --radius:6px;
+}
+[data-theme="light"]{
+  --bg:#f5f5f5;
+  --surface:#fff;
+  --border:#ddd;
+  --text:#111;
+  --muted:#888;
+  --accent:#8b6f3f;
+}
+body{
+  font:14px/1.5 system-ui,-apple-system,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+}
+.hidden{display:none}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+input,select,textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:6px 10px}
+input:focus,select:focus,textarea:focus{outline:1px solid var(--accent)}
+
+/* Layout */
+.side{position:fixed;left:0;top:0;bottom:0;width:200px;background:var(--surface);border-right:1px solid var(--border);padding:24px 16px;display:flex;flex-direction:column;gap:24px;z-index:10}
+.logo{width:48px;height:48px;border-radius:var(--radius);overflow:hidden;cursor:pointer}
+.logo img{width:100%;height:100%;object-fit:cover}
+.brand{font-size:16px;font-weight:600}
+.nav{display:flex;flex-direction:column;gap:4px}
+.nav button{padding:8px 12px;text-align:left;border-radius:var(--radius);color:var(--muted);transition:all .15s}
+.nav button:hover{background:var(--border);color:var(--text)}
+.nav button.active{background:var(--accent);color:#fff}
+.content{margin-left:200px;padding:32px 40px}
+
+/* Summary */
+.sumbar{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:24px}
+.sum{background:var(--surface);padding:16px}
+.sum-label{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:4px}
+.sum-value{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}
+.sum-value.ok{color:var(--green)}
+.sum-value.warn{color:var(--red)}
+
+/* Toolbar */
+.toolbar{display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap}
+.toolbar input[type=search]{flex:1;min-width:200px}
+.btn{padding:8px 16px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);transition:all .15s}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+
+/* Table */
+.table-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)}
+table{width:100%;border-collapse:collapse}
+th,td{padding:10px 14px;text-align:left;border-bottom:1px solid var(--border)}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:500;background:var(--surface);position:sticky;top:0}
+td{font-size:13px}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+tbody tr:hover{background:rgba(255,255,255,.02)}
+
+/* Cell chips */
+.cell-stack{display:flex;flex-direction:column;gap:4px}
+.chip-toggle{padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;transition:all .15s}
+.chip-toggle:hover{border-color:var(--accent)}
+.chip-toggle[aria-expanded=true]{border-color:var(--accent)}
+.chip-body{display:none;padding:10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);margin-top:4px}
+.cell-stack.open .chip-body{display:flex;flex-direction:column;gap:8px}
+.chip-field{display:flex;flex-direction:column;gap:4px}
+.chip-field label{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.chip-field input,.chip-field select{width:100%}
+
+/* Status badges */
+.badge{display:inline-block;padding:2px 8px;border-radius:var(--radius);font-size:11px;font-weight:500}
+.badge.gray{background:rgba(102,102,102,.15);color:var(--muted)}
+.badge.yellow{background:rgba(204,153,0,.15);color:var(--yellow)}
+.badge.green{background:rgba(68,170,153,.15);color:var(--green)}
+.badge.red{background:rgba(204,68,68,.15);color:var(--red)}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:100}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;max-width:500px;width:90%;max-height:90vh;overflow-y:auto}
+.modal h3{font-size:16px;font-weight:600;margin-bottom:16px}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px}
+.field input,.field select,.field textarea{width:100%}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:24px}
+
+/* Bank bar */
+.bankbar{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:8px;display:flex;gap:4px;z-index:50}
+.chip{padding:6px 12px;border-radius:var(--radius);font-size:12px;border:1px solid var(--border);background:var(--surface)}
+.chip.active{background:var(--accent);border-color:var(--accent);color:#fff}
+
+/* Toast */
+.toast{position:fixed;bottom:80px;right:24px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 20px;z-index:200;opacity:0;transform:translateY(10px);transition:all .2s}
+.toast.show{opacity:1;transform:translateY(0)}
+
+/* Dashboard */
+.dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:24px}
+.dash-card{background:var(--surface);padding:20px}
+.dash-card .label{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:4px}
+.dash-card .value{font-size:24px;font-weight:600;font-variant-numeric:tabular-nums}
+.dash-card .value.ok{color:var(--green)}
+.dash-card .value.warn{color:var(--red)}
+
+/* Animations */
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.fade-in{animation:fadeIn .2s ease-out}
+
+/* Mobile */
+@media(max-width:768px){
+  .side{width:60px;padding:16px 8px}
+  .brand,.nav span{display:none}
+  .content{margin-left:60px;padding:16px}
+  .sumbar{grid-template-columns:repeat(2,1fr)}
+  .dash-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<aside class="side">
+  <div class="logo" id="logoZone" title="Загрузить логотип">
+    <svg id="logoImg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%">
+      <rect width="100" height="100" fill="#000"/>
+      <text x="50" y="65" font-family="Georgia,serif" font-size="32" font-weight="700" fill="#fff" text-anchor="middle">OGH</text>
+      <ellipse cx="50" cy="50" rx="40" ry="15" fill="none" stroke="#fff" stroke-width="1" opacity="0.3" transform="rotate(-15 50 50)"/>
+    </svg>
+  </div>
+  <div class="brand">OGH</div>
+  <nav class="nav">
+    <button class="active" data-view="table"><span>Таблица</span></button>
+    <button data-view="dash"><span>Сводка</span></button>
+  </nav>
+  <div style="margin-top:auto;display:flex;gap:8px">
+    <button id="themeBtn" title="Тема">☾</button>
+    <button id="settingsBtn" title="Настройки">⚙</button>
+  </div>
+</aside>
+
+<main class="content fade-in" id="main"></main>
+
+<div class="bankbar" id="bankbar"></div>
+
+<div class="modal-overlay" id="overlay">
+  <div class="modal" id="modal"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<input type="file" id="logoFile" accept="image/*" class="hidden">
+<input type="file" id="importFile" accept=".json" class="hidden">
+
+<script>
+const LS_KEY='drops-app-v1';
+const $=s=>document.querySelector(s);
+const $$=s=>document.querySelectorAll(s);
+
+const uid=()=>crypto.randomUUID();
+const fmt=n=>new Intl.NumberFormat('ru-RU').format(n||0);
+const money=n=>fmt(n)+' ₽';
+const today=()=>new Date().toISOString().slice(0,10);
+const daysAgo=n=>{const d=new Date();d.setDate(d.getDate()-n);return d.toISOString().slice(0,10)};
+const fmtDate=d=>{if(!d)return'';const p=d.split('-');return p[2]+'.'+p[1]+'.'+p[0]};
+
+const MAT_STATUS={notset:['Не пост.','gray'],working:['В работе','yellow'],placed:['Поставлен','green']};
+const PAY_STATUS={waiting:['Ожид.','red'],paid:['Выплач.','green']};
+const BANKS=['Альфа-Банк','Сбербанк','Т-Банк','ВТБ','Совкомбанк','Райффайзен'];
+const COLORS=['#e44','#29f','#fa0','#45f','#4a4','#a4f'];
+
+let state=JSON.parse(localStorage.getItem(LS_KEY)||'null')||{
+  banks:BANKS.map((n,i)=>({id:uid(),name:n,color:COLORS[i]})),
+  drops:[
+    {id:uid(),feo:'Феникс',fio:'Иванов Иван Иванович',phone:'+7 900 111-22-33',passport:{num:'1234 567890',issuedBy:'ОВД №2',issuedDate:'2015-03-15',unitCode:'770-035',address:'г. Москва'},passportPhoto:null,bankId:null,cards:[],note:''},
+    {id:uid(),feo:'Вега',fio:'Петрова Анна Сергеевна',phone:'',passport:{num:'',issuedBy:'',issuedDate:'',unitCode:'',address:''},passportPhoto:null,bankId:null,cards:[],note:''}
+  ],
+  records:[
+    {id:uid(),dropId:null,date:daysAgo(0),material:135000,payment:120000,income:15000,materialStatus:'placed',payStatus:'paid'},
+    {id:uid(),dropId:null,date:daysAgo(1),material:72000,payment:60000,income:8000,materialStatus:'working',payStatus:'waiting'},
+    {id:uid(),dropId:null,date:daysAgo(2),material:205000,payment:180000,income:25000,materialStatus:'placed',payStatus:'paid'},
+    {id:uid(),dropId:null,date:daysAgo(5),material:55000,payment:0,income:5000,materialStatus:'notset',payStatus:'waiting'}
+  ],
+  settings:{theme:'dark',password:null,logo:null}
+};
+
+// Assign drops to records for demo
+state.records[0].dropId=state.drops[0].id;
+state.records[1].dropId=state.drops[1].id;
+state.records[2].dropId=state.drops[0].id;
+state.records[3].dropId=state.drops[1].id;
+state.drops[0].bankId=state.banks[0].id;
+state.drops[1].bankId=state.banks[1].id;
+
+const save=()=>localStorage.setItem(LS_KEY,JSON.stringify(state));
+const ui={view:'table',bankFilter:'all',period:'all',customFrom:'',customTo:'',search:''};
+
+function inPeriod(iso,period,from,to){
+  if(period==='all')return true;
+  if(period==='custom'){
+    if(from&&iso<from)return false;
+    if(to&&iso>to)return false;
+    return true;
+  }
+  const days=period==='today'?1:period==='7'?7:period==='30'?30:null;
+  if(!days)return true;
+  const t=new Date(iso);
+  const now=new Date();
+  now.setHours(0,0,0,0);
+  return(now-t)/864e5>=0&&(now-t)/864e5<days;
+}
+
+function filteredRecords(){
+  const q=ui.search.toLowerCase();
+  return state.records.filter(r=>{
+    if(ui.bankFilter!=='all'){
+      const d=state.drops.find(d=>d.id===r.dropId);
+      if(!d||d.bankId!==ui.bankFilter)return false;
+    }
+    if(!inPeriod(r.date,ui.period,ui.customFrom,ui.customTo))return false;
+    if(q){
+      const d=state.drops.find(d=>d.id===r.dropId);
+      const hay=(d?.feo+' '+d?.fio).toLowerCase();
+      if(!hay.includes(q))return false;
+    }
+    return true;
+  }).sort((a,b)=>b.date.localeCompare(a.date));
+}
+
+function summaryRecords(){
+  return state.records.filter(r=>{
+    if(ui.bankFilter!=='all'){
+      const d=state.drops.find(d=>d.id===r.dropId);
+      if(!d||d.bankId!==ui.bankFilter)return false;
+    }
+    return inPeriod(r.date,ui.period,ui.customFrom,ui.customTo);
+  });
+}
+
+function computeTotals(list){
+  return list.reduce((a,r)=>{
+    a.mat+=r.material||0;
+    a.inc+=r.income||0;
+    if(r.payStatus==='paid')a.paid+=r.payment||0;
+    else a.wait+=r.payment||0;
+    return a;
+  },{count:list.length,mat:0,paid:0,wait:0,inc:0});
+}
+
+function matChip(r){
+  const opts=Object.entries(MAT_STATUS).map(([k,v])=>`<option value="${k}" ${k===r.materialStatus?'selected':''}>${v[0]}</option>`).join('');
+  return`<div class="cell-stack" data-rec="${r.id}">
+    <button class="chip-toggle" data-chip="material" aria-expanded="false">
+      <span class="badge ${MAT_STATUS[r.materialStatus][1]}">${MAT_STATUS[r.materialStatus][0]}</span>
+      <span>▼</span>
+    </button>
+    <div class="chip-body">
+      <div class="chip-field"><label>Сумма, ₽</label><input type="number" data-field="material" value="${r.material||0}"></div>
+      <div class="chip-field"><label>Статус</label><select data-field="materialStatus">${opts}</select></div>
+    </div>
+  </div>`;
+}
+
+function payChip(r){
+  const opts=Object.entries(PAY_STATUS).map(([k,v])=>`<option value="${k}" ${k===r.payStatus?'selected':''}>${v[0]}</option>`).join('');
+  return`<div class="cell-stack" data-rec="${r.id}">
+    <button class="chip-toggle" data-chip="payment" aria-expanded="false">
+      <span style="font-weight:600">${money(r.payment)}</span>
+      <span class="badge ${PAY_STATUS[r.payStatus][1]}">${PAY_STATUS[r.payStatus][0]}</span>
+    </button>
+    <div class="chip-body">
+      <div class="chip-field"><label>Выплата, ₽</label><input type="number" data-field="payment" value="${r.payment||0}"></div>
+      <div class="chip-field"><label>Статус</label><select data-field="payStatus">${opts}</select></div>
+    </div>
+  </div>`;
+}
+
+function render(){
+  if(ui.view==='table')renderTable();
+  else renderDash();
+  renderBankBar();
+}
+
+function renderTable(){
+  const recs=filteredRecords();
+  const totals=computeTotals(summaryRecords());
+
+  $('#main').innerHTML=`
+    <div class="sumbar">
+      <div class="sum"><div class="sum-label">Записей</div><div class="sum-value">${totals.count}</div></div>
+      <div class="sum"><div class="sum-label">Материал</div><div class="sum-value">${money(totals.mat)}</div></div>
+      <div class="sum"><div class="sum-label">Выплачено</div><div class="sum-value ok">${money(totals.paid)}</div></div>
+      <div class="sum"><div class="sum-label">Ожидание</div><div class="sum-value warn">${money(totals.wait)}</div></div>
+      <div class="sum"><div class="sum-label">Заработок</div><div class="sum-value">${money(totals.inc)}</div></div>
+    </div>
+    <div class="toolbar">
+      <input type="search" placeholder="Поиск..." value="${ui.search}" id="searchInput">
+      <select id="periodFilter">
+        <option value="today" ${ui.period==='today'?'selected':''}>Сегодня</option>
+        <option value="7" ${ui.period==='7'?'selected':''}>7 дней</option>
+        <option value="30" ${ui.period==='30'?'selected':''}>30 дней</option>
+        <option value="all" ${ui.period==='all'?'selected':''}>Всё</option>
+        <option value="custom" ${ui.period==='custom'?'selected':''}>Диапазон</option>
+      </select>
+      ${ui.period==='custom'?`<input type="date" id="customFrom" value="${ui.customFrom}"><input type="date" id="customTo" value="${ui.customTo}">`:''}
+      <button class="btn" onclick="exportCSV()">CSV</button>
+      <button class="btn" onclick="openRecModal()">+ Запись</button>
+      <button class="btn primary" onclick="openDropModal()">+ Дроп</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>ФИО</th><th>Дата</th><th>Материал</th><th>Выплата</th><th class="num">Заработок</th><th></th></tr></thead>
+        <tbody>
+          ${recs.length?recs.map(r=>{
+            const d=state.drops.find(d=>d.id===r.dropId);
+            return`<tr>
+              <td>${d?`<button onclick="openDropProfile('${d.id}')" style="text-align:left"><strong>${d.fio||d.feo}</strong><br><small style="color:var(--muted)">${d.feo}</small></button>`:'<button onclick="assignDrop(\''+r.id+'\')" style="color:var(--muted)">Выбрать</button>'}</td>
+              <td><input type="date" value="${r.date}" onchange="updateRec('${r.id}','date',this.value)" style="width:auto"></td>
+              <td>${matChip(r)}</td>
+              <td>${payChip(r)}</td>
+              <td class="num"><input type="number" value="${r.income||0}" onchange="updateRec('${r.id}','income',+this.value)" style="width:80px;text-align:right"></td>
+              <td><button onclick="delRec('${r.id}')" title="Удалить">✕</button></td>
+            </tr>`;
+          }).join(''):'<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--muted)">Нет записей</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  $('#searchInput').oninput=e=>{ui.search=e.target.value;render()};
+  $('#periodFilter').onchange=e=>{ui.period=e.target.value;render()};
+  if(ui.period==='custom'){
+    $('#customFrom').onchange=e=>{ui.customFrom=e.target.value;render()};
+    $('#customTo').onchange=e=>{ui.customTo=e.target.value;render()};
+  }
+
+  $$('.chip-toggle').forEach(btn=>{
+    btn.onclick=e=>{
+      e.stopPropagation();
+      const stack=btn.closest('.cell-stack');
+      const open=stack.classList.toggle('open');
+      btn.setAttribute('aria-expanded',open);
+    };
+  });
+
+  $$('[data-field]').forEach(input=>{
+    input.onchange=e=>{
+      const stack=e.target.closest('.cell-stack');
+      const recId=stack.dataset.rec;
+      const field=e.target.dataset.field;
+      const value=e.target.type==='number'?+e.target.value:e.target.value;
+      updateRec(recId,field,value);
+    };
+  });
+}
+
+function renderDash(){
+  const totals=computeTotals(summaryRecords());
+  const byBank={};
+  summaryRecords().forEach(r=>{
+    const d=state.drops.find(d=>d.id===r.dropId);
+    if(!d||!d.bankId)return;
+    const b=byBank[d.bankId]||(byBank[d.bankId]={name:state.banks.find(b=>b.id===d.bankId)?.name||'—',count:0,mat:0,paid:0,inc:0});
+    b.count++;
+    b.mat+=r.material||0;
+    b.inc+=r.income||0;
+    if(r.payStatus==='paid')b.paid+=r.payment||0;
+  });
+
+  $('#main').innerHTML=`
+    <div class="dash-grid">
+      <div class="dash-card"><div class="label">Записей</div><div class="value">${totals.count}</div></div>
+      <div class="dash-card"><div class="label">Материал</div><div class="value">${money(totals.mat)}</div></div>
+      <div class="dash-card"><div class="label">Выплачено</div><div class="value ok">${money(totals.paid)}</div></div>
+      <div class="dash-card"><div class="label">Ожидание</div><div class="value warn">${money(totals.wait)}</div></div>
+    </div>
+    <div class="table-wrap" style="padding:24px">
+      <h3 style="font-size:14px;margin-bottom:16px">По банкам</h3>
+      <table>
+        <thead><tr><th>Банк</th><th class="num">Записей</th><th class="num">Материал</th><th class="num">Выплачено</th><th class="num">Заработок</th></tr></thead>
+        <tbody>
+          ${Object.values(byBank).map(b=>`<tr><td>${b.name}</td><td class="num">${b.count}</td><td class="num">${money(b.mat)}</td><td class="num">${money(b.paid)}</td><td class="num">${money(b.inc)}</td></tr>`).join('')||'<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--muted)">Нет данных</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderBankBar(){
+  const counts={};
+  state.records.forEach(r=>{
+    const d=state.drops.find(d=>d.id===r.dropId);
+    if(d&&d.bankId)counts[d.bankId]=(counts[d.bankId]||0)+1;
+  });
+  $('#bankbar').innerHTML=`
+    <button class="chip ${ui.bankFilter==='all'?'active':''}" onclick="setBank('all')">Все</button>
+    ${state.banks.map(b=>`<button class="chip ${ui.bankFilter===b.id?'active':''}" onclick="setBank('${b.id}')">${b.name} ${counts[b.id]?'('+counts[b.id]+')':''}</button>`).join('')}
+  `;
+}
+
+window.setBank=id=>{ui.bankFilter=id;render()};
+
+window.updateRec=(id,field,value)=>{
+  const r=state.records.find(r=>r.id===id);
+  if(!r)return;
+  r[field]=value;
+  save();
+  if(field!=='date')render();
+};
+
+window.openRecModal=()=>{
+  $('#modal').innerHTML=`
+    <h3>Новая запись</h3>
+    <div class="field"><label>Дроп</label><select id="recDrop">${state.drops.map(d=>`<option value="${d.id}">${d.feo}</option>`).join('')}</select></div>
+    <div class="field"><label>Дата</label><input type="date" id="recDate" value="${today()}"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Отмена</button>
+      <button class="btn primary" onclick="saveRec()">Добавить</button>
+    </div>
+  `;
+  $('#overlay').classList.add('open');
+};
+
+window.saveRec=()=>{
+  state.records.push({id:uid(),dropId:$('#recDrop').value,date:$('#recDate').value,material:0,payment:0,income:0,materialStatus:'notset',payStatus:'waiting'});
+  save();closeModal();render();
+  toast('Добавлено');
+};
+
+window.delRec=id=>{
+  if(!confirm('Удалить запись?'))return;
+  state.records=state.records.filter(r=>r.id!==id);
+  save();render();
+  toast('Удалено');
+};
+
+window.assignDrop=recId=>{
+  $('#modal').innerHTML=`
+    <h3>Выбрать дропа</h3>
+    <div class="field"><label>Дроп</label><select id="assignDrop">${state.drops.map(d=>`<option value="${d.id}">${d.feo} — ${d.fio}</option>`).join('')}</select></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Отмена</button>
+      <button class="btn primary" onclick="doAssign('${recId}')">OK</button>
+    </div>
+  `;
+  $('#overlay').classList.add('open');
+};
+
+window.doAssign=recId=>{
+  const r=state.records.find(r=>r.id===recId);
+  if(r)r.dropId=$('#assignDrop').value;
+  save();closeModal();render();
+  toast('Назначен');
+};
+
+window.openDropModal=()=>{
+  $('#modal').innerHTML=`
+    <h3>Новый дроп</h3>
+    <div class="field"><label>Позывной</label><input id="dropFeo" required></div>
+    <div class="field"><label>ФИО</label><input id="dropFio"></div>
+    <div class="field"><label>Телефон</label><input id="dropPhone"></div>
+    <div class="field"><label>Банк</label><select id="dropBank"><option value="">—</option>${state.banks.map(b=>`<option value="${b.id}">${b.name}</option>`).join('')}</select></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Отмена</button>
+      <button class="btn primary" onclick="saveDrop()">Добавить</button>
+    </div>
+  `;
+  $('#overlay').classList.add('open');
+};
+
+window.saveDrop=()=>{
+  const feo=$('#dropFeo').value.trim();
+  if(!feo){toast('Введи позывной');return}
+  state.drops.push({id:uid(),feo,fio:$('#dropFio').value,phone:$('#dropPhone').value,bankId:$('#dropBank').value||null,passport:{num:'',issuedBy:'',issuedDate:'',unitCode:'',address:''},passportPhoto:null,cards:[],note:''});
+  save();closeModal();render();
+  toast('Добавлен');
+};
+
+window.openDropProfile=id=>{
+  const d=state.drops.find(d=>d.id===id);
+  if(!d)return;
+  const p=d.passport||{};
+  $('#modal').innerHTML=`
+    <h3>${d.feo}</h3>
+    <div class="field"><label>ФИО</label><input id="profFio" value="${d.fio||''}"></div>
+    <div class="field"><label>Телефон</label><input id="profPhone" value="${d.phone||''}"></div>
+    <div class="field"><label>Паспорт</label><input id="profPassNum" value="${p.num||''}" placeholder="Серия номер"></div>
+    <div class="field"><input id="profPassIssued" value="${p.issuedBy||''}" placeholder="Кем выдан"></div>
+    <div class="field"><input id="profPassDate" value="${p.issuedDate||''}" placeholder="Дата выдачи"></div>
+    <div class="field"><input id="profPassAddr" value="${p.address||''}" placeholder="Адрес"></div>
+    <div class="field"><label>Банк</label><select id="profBank"><option value="">—</option>${state.banks.map(b=>`<option value="${b.id}" ${d.bankId===b.id?'selected':''}>${b.name}</option>`).join('')}</select></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="delDrop('${id}')">Удалить</button>
+      <button class="btn" onclick="closeModal()">Закрыть</button>
+      <button class="btn primary" onclick="saveProfile('${id}')">Сохранить</button>
+    </div>
+  `;
+  $('#overlay').classList.add('open');
+};
+
+window.saveProfile=id=>{
+  const d=state.drops.find(d=>d.id===id);
+  if(!d)return;
+  d.fio=$('#profFio').value;
+  d.phone=$('#profPhone').value;
+  d.bankId=$('#profBank').value||null;
+  d.passport={num:$('#profPassNum').value,issuedBy:$('#profPassIssued').value,issuedDate:$('#profPassDate').value,unitCode:'',address:$('#profPassAddr').value};
+  save();closeModal();render();
+  toast('Сохранено');
+};
+
+window.delDrop=id=>{
+  if(!confirm('Удалить дропа?'))return;
+  state.drops=state.drops.filter(d=>d.id!==id);
+  state.records.forEach(r=>{if(r.dropId===id)r.dropId=null});
+  save();closeModal();render();
+  toast('Удалён');
+};
+
+window.exportCSV=()=>{
+  const rows=[['ФИО','Позывной','Дата','Материал','Статус','Выплата','Статус выплаты','Заработок'].join(';')];
+  filteredRecords().forEach(r=>{
+    const d=state.drops.find(d=>d.id===r.dropId);
+    rows.push([d?.fio||'',d?.feo||'',fmtDate(r.date),r.material,MAT_STATUS[r.materialStatus][0],r.payment,PAY_STATUS[r.payStatus][0],r.income].join(';'));
+  });
+  const blob=new Blob(['\uFEFF'+rows.join('\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='journal-'+today()+'.csv';
+  a.click();
+  toast('CSV экспортирован');
+};
+
+window.closeModal=()=>$('#overlay').classList.remove('open');
+
+function toast(msg){
+  $('#toast').textContent=msg;
+  $('#toast').classList.add('show');
+  setTimeout(()=>$('#toast').classList.remove('show'),2000);
+}
+
+$$('.nav button').forEach(b=>b.onclick=()=>{
+  $$('.nav button').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  ui.view=b.dataset.view;
+  render();
+});
+
+$('#themeBtn').onclick=()=>{
+  state.settings.theme=state.settings.theme==='dark'?'light':'dark';
+  document.documentElement.dataset.theme=state.settings.theme;
+  $('#themeBtn').textContent=state.settings.theme==='dark'?'☾':'☀';
+  save();
+};
+
+$('#settingsBtn').onclick=()=>{
+  $('#modal').innerHTML=`
+    <h3>Настройки</h3>
+    <div class="field"><label>Экспорт</label><button class="btn" onclick="exportJSON()">Скачать JSON</button></div>
+    <div class="field"><label>Импорт</label><button class="btn" onclick="$('#importFile').click()">Загрузить JSON</button></div>
+    <div class="field"><label>Очистить</label><button class="btn" onclick="if(confirm('Удалить все данные?')){localStorage.clear();location.reload()}">Сброс</button></div>
+    <div class="modal-actions"><button class="btn primary" onclick="closeModal()">Закрыть</button></div>
+  `;
+  $('#overlay').classList.add('open');
+};
+
+$('#logoZone').onclick=()=>$('#logoFile').click();
+$('#logoFile').onchange=e=>{
+  const f=e.target.files[0];
+  if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{
+    state.settings.logo=r.result;
+    $('#logoImg').outerHTML=`<img id="logoImg" src="${r.result}" style="width:100%;height:100%;object-fit:cover">`;
+    save();
+    toast('Логотип обновлён');
+  };
+  r.readAsDataURL(f);
+};
+
+$('#importFile').onchange=e=>{
+  const f=e.target.files[0];
+  if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      state=JSON.parse(r.result);
+      save();render();
+      toast('Импортировано');
+    }catch(e){toast('Ошибка')}
+  };
+  r.readAsText(f);
+};
+
+window.exportJSON=()=>{
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='drops-'+today()+'.json';
+  a.click();
+  toast('Экспортировано');
+};
+
+$('#overlay').onclick=e=>{if(e.target===$('#overlay'))closeModal()};
+
+if(state.settings.logo){
+  $('#logoImg').outerHTML=`<img id="logoImg" src="${state.settings.logo}" style="width:100%;height:100%;object-fit:cover">`;
+}
+document.documentElement.dataset.theme=state.settings.theme;
+$('#themeBtn').textContent=state.settings.theme==='dark'?'☾':'☀';
+render();
+</script>
+</body>
+</html>
