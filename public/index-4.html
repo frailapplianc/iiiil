@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OGH — Дроп-бухгалтерия</title>
-<link rel="icon" href="https://raw.githubusercontent.com/frailapplianc/iiiil/main/ChatGPT%20Image%207%20%D0%BE%D0%BA%D1%82.%202026%20%D0%B3.,%2022_26_52.png">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◈</text></svg>">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -29,7 +29,7 @@
 }
 body{
   font:14px/1.5 system-ui,-apple-system,sans-serif;
-  background:var(--bg) url('https://raw.githubusercontent.com/frailapplianc/iiiil/main/ChatGPT%20Image%207%20%D0%BE%D0%BA%D1%82.%202026%20%D0%B3.,%2022_29_32.png') center/cover fixed;
+  background:var(--bg);
   color:var(--text);
   min-height:100vh;
 }
@@ -136,7 +136,11 @@ tbody tr:hover{background:rgba(255,255,255,.02)}
 
 <aside class="side">
   <div class="logo" id="logoZone" title="Загрузить логотип">
-    <img src="https://raw.githubusercontent.com/frailapplianc/iiiil/main/ChatGPT%20Image%207%20%D0%BE%D0%BA%D1%82.%202026%20%D0%B3.,%2022_26_52.png" alt="OGH" id="logoImg">
+    <svg id="logoImg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%">
+      <rect width="100" height="100" fill="#000"/>
+      <text x="50" y="65" font-family="Georgia,serif" font-size="32" font-weight="700" fill="#fff" text-anchor="middle">OGH</text>
+      <ellipse cx="50" cy="50" rx="40" ry="15" fill="none" stroke="#fff" stroke-width="1" opacity="0.3" transform="rotate(-15 50 50)"/>
+    </svg>
   </div>
   <div class="brand">OGH</div>
   <nav class="nav">
@@ -581,7 +585,7 @@ $('#logoFile').onchange=e=>{
   const r=new FileReader();
   r.onload=()=>{
     state.settings.logo=r.result;
-    $('#logoImg').src=r.result;
+    $('#logoImg').outerHTML=`<img id="logoImg" src="${r.result}" style="width:100%;height:100%;object-fit:cover">`;
     save();
     toast('Логотип обновлён');
   };
@@ -613,7 +617,9 @@ window.exportJSON=()=>{
 
 $('#overlay').onclick=e=>{if(e.target===$('#overlay'))closeModal()};
 
-if(state.settings.logo)$('#logoImg').src=state.settings.logo;
+if(state.settings.logo){
+  $('#logoImg').outerHTML=`<img id="logoImg" src="${state.settings.logo}" style="width:100%;height:100%;object-fit:cover">`;
+}
 document.documentElement.dataset.theme=state.settings.theme;
 $('#themeBtn').textContent=state.settings.theme==='dark'?'☾':'☀';
 render();
